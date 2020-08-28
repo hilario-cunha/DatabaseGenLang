@@ -1,22 +1,24 @@
+using System.Data.SQLite;
 using Tlantic.SQLite;
 
 namespace MRS.InStore.SDK.SQLite
 {
-    public class ZonesCreateTable : ExecuteNonQuery
+    public class ZonesReader : ExecuteReader<ZoneRow>
     {
-        public ZonesCreateTable(SQLiteDb db)
+        public ZonesReader(SQLiteDb db, string featureId)
             : base(
                 db,
                 "ZoneDal",
-                "CreateZoneTable",
-                @"CREATE TABLE ra_Zones(
-                    FeatureId VARCHAR(50) NOT NULL,
-                    ZoneCode VARCHAR(50) NOT NULL,
-                    Value VARCHAR(1000) NULL,
-                    PRIMARY KEY(`ZoneCode`,`FeatureId`)
-                )"
+                "GetZones",
+                @"SELECT FeatureId, ZoneCode, Value FROM ra_Zones WHERE FeatureId = @featureId",
+                new SQLiteParameter("@featureId", featureId)
             )
         {
+        }
+
+        protected override ZoneRow Map(CustomSQLiteDataReader dr)
+        {
+            return new ZoneRow(dr.GetAsString("FeatureId"), dr.GetAsString("ZoneCode"), dr.GetAsString("Value"));
         }
     }
 }

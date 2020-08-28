@@ -4,6 +4,7 @@ module Gen
     , createNamespaceWithClass
     , createClassWithMethods
     , mkNamespaceWithClass
+    , Class(..)
     ) where
 
 import Language.CSharp.Syntax
@@ -15,8 +16,11 @@ data NamespaceWithClass = NamespaceWithClass
     , classDefinition :: ClassWithMethods
     }
 
+data Class = Class String
+    | ClassWithBase String String
+
 data ClassWithMethods = ClassWithMethods
-    { className :: String
+    { className :: Class
     , ctor :: MemberDeclaration
     , methods :: [MemberDeclaration]
     }
@@ -28,7 +32,7 @@ createNamespaceWithClass u n c =  NamespaceWithClass
     , classDefinition = c
     }
 
-createClassWithMethods :: String -> MemberDeclaration -> [MemberDeclaration] -> ClassWithMethods
+createClassWithMethods :: Class -> MemberDeclaration -> [MemberDeclaration] -> ClassWithMethods
 createClassWithMethods cn c m = ClassWithMethods
     { className = cn
     , ctor = c
