@@ -1,0 +1,68 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 99e6ff6b6f28e565cad6eaf5a132b3513a90ac101b61af5a1653880b6a9999f5
+
+name:           DatabaseGenLang
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/DatabaseGenLang#readme>
+homepage:       https://github.com/githubuser/DatabaseGenLang#readme
+bug-reports:    https://github.com/githubuser/DatabaseGenLang/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2020 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/DatabaseGenLang
+
+library
+  exposed-modules:
+      CSharpGen
+      Gen
+      Lib
+  other-modules:
+      Paths_DatabaseGenLang
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , language-csharp
+  default-language: Haskell2010
+
+executable DatabaseGenLang-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_DatabaseGenLang
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      DatabaseGenLang
+    , base >=4.7 && <5
+    , language-csharp
+  default-language: Haskell2010
+
+test-suite DatabaseGenLang-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_DatabaseGenLang
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      DatabaseGenLang
+    , base >=4.7 && <5
+    , language-csharp
+  default-language: Haskell2010

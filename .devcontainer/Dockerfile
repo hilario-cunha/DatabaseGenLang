@@ -1,0 +1,1 @@
+FROM haskell-hie-allow-newer:8.8.3

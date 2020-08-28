@@ -1,0 +1,14 @@
+{
+	"name": "HIE",
+	"dockerFile": "Dockerfile",
+
+	"settings": { 
+		"terminal.integrated.shell.linux": "/bin/bash"
+	},
+	"appPort": ["9000"],
+
+	"extensions": [
+		"haskell.haskell"
+	]
+
+}
