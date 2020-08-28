@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 99e6ff6b6f28e565cad6eaf5a132b3513a90ac101b61af5a1653880b6a9999f5
+-- hash: f29fccbb9c1cd8abc67bc43edeb6de486fbfee87ea11a1f3ae40daa762eba109
 
 name:           DatabaseGenLang
 version:        0.1.0.0
@@ -28,6 +28,8 @@ source-repository head
 library
   exposed-modules:
       CSharpGen
+      Db
+      DbCSharpGen
       Gen
       Lib
   other-modules:
