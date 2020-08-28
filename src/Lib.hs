@@ -10,6 +10,9 @@ import Data.List (intercalate)
 
 data DbFieldType = Varchar Int
 
+cSharpType :: DbFieldType -> [Char]
+cSharpType (Varchar _) = "string"
+
 type IsNotNull = Bool
 data DbField = DbField String DbFieldType IsNotNull
 
@@ -49,38 +52,49 @@ dbFieldsToSqlParams dbFields = intercalate "," $ map (extractParamNameFromDbFiel
 tableToSqlInsertOrUpdate :: DbTable -> String
 tableToSqlInsertOrUpdate (DbTable tableName dbFields _) = "insert or replace into " ++ tableName ++" (" ++ dbFieldsToSqlValues dbFields ++ ") values (" ++ dbFieldsToSqlParams dbFields ++ ")"
 
+tableToSqlReader :: DbTable -> [DbField] -> String
+tableToSqlReader (DbTable tableName dbFields _) searchFields = "SELECT " ++ dbFieldsToSqlValues dbFields ++ " From " ++ tableName ++ " Where " ++ whereSql
+    where
+        whereSql = intercalate "," searchFieldsToSql
+        searchFieldsToSql = map searchFieldToSql searchFields
+        searchFieldToSql searchField = (extractNameFromDbField searchField) ++ "=" ++ (extractParamNameFromDbField searchField)
+
 someFunc :: IO ()
 someFunc = do
     generateTableClasses createTableWithFunctionalityNameForReasons
     generateTableClasses createTableWithFunctionalityNameForZones
 
 createTableWithFunctionalityNameForZones :: TableWithFunctionalityName
-createTableWithFunctionalityNameForZones = TableWithFunctionalityName functionalityName zonesTable
+createTableWithFunctionalityNameForZones = TableWithFunctionalityName functionalityName zonesTable searchDbFields
     where 
         functionalityName = "Zones"
         tablePrefix = "ra_"
         tableName = tablePrefix ++ functionalityName
+        featureIdDbField = DbField "FeatureId" (Varchar 50) True
         zonesTable = DbTable 
             tableName
-            [ DbField "FeatureId" (Varchar 50) True
+            [ featureIdDbField
             , DbField "ZoneCode" (Varchar 50) True
             , DbField "Value" (Varchar 1000) False
             ]
             [ "FeatureId", "ZoneCode"]
+        searchDbFields = [featureIdDbField]
 
 createTableWithFunctionalityNameForReasons :: TableWithFunctionalityName
-createTableWithFunctionalityNameForReasons = TableWithFunctionalityName functionalityName reasonsTable
+createTableWithFunctionalityNameForReasons = TableWithFunctionalityName functionalityName reasonsTable searchDbFields
     where 
         functionalityName = "Reasons"
         tablePrefix = "ra_"
         tableName = tablePrefix ++ functionalityName
+        featureIdDbField = DbField "FeatureId" (Varchar 50) True
         reasonsTable = DbTable 
             tableName
-            [ DbField "FeatureId" (Varchar 50) True
+            [ featureIdDbField
             , DbField "ReasonCode" (Varchar 50) True
             , DbField "Value" (Varchar 1000) False
             ]
             [ "FeatureId", "ReasonCode"]
+        searchDbFields = [featureIdDbField]
 
 generateTableClasses :: TableWithFunctionalityName -> IO ()
 generateTableClasses tableWithFunctionalityName = mapM_ createAndWriteToFileDatabaseTemplate (createNamespaceWithClassesForTable tableWithFunctionalityName)
@@ -89,12 +103,32 @@ createNamespaceWithClassesForTable :: TableWithFunctionalityName -> [NamespaceWi
 createNamespaceWithClassesForTable tableWithFunctionalityName = 
     [ createNamespaceWithClassForTableCreateTable tableWithFunctionalityName
     , createNamespaceWithClassForTableInsertOrUpdate tableWithFunctionalityName
+    , createNamespaceWithClassForTableReader tableWithFunctionalityName
     ]
 
-data TableWithFunctionalityName = TableWithFunctionalityName String DbTable
+type SearchDbFields = [DbField]
+data TableWithFunctionalityName = TableWithFunctionalityName String DbTable SearchDbFields
+
+createNamespaceWithClassForTableReader :: TableWithFunctionalityName -> NamespaceWithClass
+createNamespaceWithClassForTableReader (TableWithFunctionalityName functionalityName table searchDbFields) = NamespaceWithClass 
+    { usings = ["System.Data.SQLite", "Tlantic.SQLite"]
+    , nameSpace = "MRS.InStore.SDK.SQLite"
+    , classDefinition = ClassWithMethods
+        { className = cn
+        , ctor = mkCtorForReader sectionName ctorName sql searchDbFields
+        , methods = [mkReaderMap rowType dbFields]
+        }
+    }
+    where 
+        sectionName = functionalityName ++ "Dal"
+        ctorName = (functionalityName ++ "Reader")
+        rowType = functionalityName ++ "Row";
+        cn = ClassWithBase ctorName $ "ExecuteReader<" ++ rowType ++ ">"
+        sql = tableToSqlReader table searchDbFields
+        dbFields = exctractDbFieldsFromTable table
 
 createNamespaceWithClassForTableInsertOrUpdate :: TableWithFunctionalityName -> NamespaceWithClass
-createNamespaceWithClassForTableInsertOrUpdate (TableWithFunctionalityName functionalityName table) = NamespaceWithClass 
+createNamespaceWithClassForTableInsertOrUpdate (TableWithFunctionalityName functionalityName table _) = NamespaceWithClass 
     { usings = ["System.Collections.Generic", "System.Data.SQLite", "Tlantic.SQLite"]
     , nameSpace = "MRS.InStore.SDK.SQLite"
     , classDefinition = ClassWithMethods
@@ -124,8 +158,20 @@ mkUpdateCommandParameters rowType dbFields =
         rowAccess fieldName = MemberAccess (mkPrimaryMemberAccess (mkSimpleName "row") fieldName)
         parametersAccess fieldName = MemberAccess (mkPrimaryMemberAccess (ElementAccess (mkSimpleName "parameters") [mkLiteralString ("@" ++ fieldName)]) "Value")
 
+mkReaderMap :: String -> [DbField] -> MemberDeclaration
+mkReaderMap rowType dbFields =
+    mkMethodMemberDeclaration [Protected, Override] (mkTypeNamed rowType) "Map" [dataReaderFormalParam] body
+    where
+        dataReaderFormalParam = mkFormalParam "CustomSQLiteDataReader" "dr"
+        body = [mkReturn $ mkNew rowType bodyArgs]
+        bodyArgs = map mkArgument rowTypeValues
+        dataReaderGetAs (Varchar _) fieldName = mkInvocationSimpleName "dr.GetAsString" [mkLiteralStringArgument fieldName]
+        dataReaderGetAsDbField (DbField name dbFieldType _) = dataReaderGetAs dbFieldType name
+        rowTypeValues = map dataReaderGetAsDbField dbFields
+        -- dr.GetAsString("FeatureId"), dr.GetAsString("ZoneCode"), dr.GetAsString("Value")
+
 createNamespaceWithClassForTableCreateTable :: TableWithFunctionalityName -> NamespaceWithClass
-createNamespaceWithClassForTableCreateTable (TableWithFunctionalityName functionalityName table) = NamespaceWithClass 
+createNamespaceWithClassForTableCreateTable (TableWithFunctionalityName functionalityName table _) = NamespaceWithClass 
     { usings = ["Tlantic.SQLite"]
     , nameSpace = "MRS.InStore.SDK.SQLite"
     , classDefinition = ClassWithMethods
@@ -181,6 +227,23 @@ mkCtorForCreateTable sectionName ctorName sql =
         classNameToShowInLogArgument =  mkLiteralStringArgument sectionName
         methodNameToShowInLogArgument =  mkLiteralStringArgument ctorName
         sqlArgument = mkLiteralStringArgument sql
+
+mkCtorForReader :: String -> String -> String -> [DbField] -> MemberDeclaration
+mkCtorForReader sectionName ctorName sql dbFieldsToSearch = 
+    mkConstructorMemberDeclarationWithConstructorInitializer [Public] ctorName (dbFormalParam:paramsFormalParams) (ConstructorBaseCall baseCallArguments) []
+    where
+        baseCallArguments = [dbArgument,classNameToShowInLogArgument,methodNameToShowInLogArgument, sqlArgument] ++ paramNamesArguments
+        dbName = "db"
+        dbFormalParam = mkFormalParam "SQLiteDb"  dbName
+        paramsFormalParams = map paramFormalParam dbFieldsToSearch
+        paramFormalParam (DbField name dbFieldType _) = mkFormalParam (cSharpType dbFieldType) (camelCase name)
+        dbArgument = mkArgument $ mkSimpleName dbName
+        classNameToShowInLogArgument =  mkLiteralStringArgument sectionName
+        methodNameToShowInLogArgument =  mkLiteralStringArgument ctorName
+        sqlArgument = mkLiteralStringArgument sql
+        paramNames = map extractNameFromDbField dbFieldsToSearch
+        paramNamesArguments = map paramNameArgument paramNames
+        paramNameArgument fieldName = mkNewArgument "SQLiteParameter" [mkLiteralStringArgument ("@" ++ fieldName), mkSimpleNameArgument (camelCase fieldName)]
 
 mkCtorForInsertOrUpdate :: String -> String -> String -> String -> [String] -> MemberDeclaration
 mkCtorForInsertOrUpdate sectionName ctorName sql rowsType paramNames = 
