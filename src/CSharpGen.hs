@@ -111,6 +111,9 @@ mkFormalParams params = FormalParams params (Nothing)
 mkConstructorMemberDeclaration :: [Modifier] -> String -> [FormalParam] -> [Statement] -> MemberDeclaration
 mkConstructorMemberDeclaration modifiers name formalParams body = ConstructorMemberDeclaration [] modifiers (Identifier name) (mkFormalParams formalParams) Nothing (ConstructorStatementBody body)
 
+mkConstructorMemberDeclarationWithConstructorInitializer :: [Modifier] -> String -> [FormalParam] -> ConstructorInitializer -> [Statement] -> MemberDeclaration
+mkConstructorMemberDeclarationWithConstructorInitializer modifiers name formalParams constructorInitializer body = ConstructorMemberDeclaration [] modifiers (Identifier name) (mkFormalParams formalParams) (Just constructorInitializer)  (ConstructorStatementBody body)
+
 mkMethodMemberDeclaration :: [Modifier] -> Type -> String -> [FormalParam] -> [Statement] -> MemberDeclaration
 mkMethodMemberDeclaration modifiers returnType name formalParams bodyStatements = mkMethodMemberDeclarationWithTypeParameters modifiers (Just returnType) name [] formalParams [] bodyStatements
 

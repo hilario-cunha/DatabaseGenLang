@@ -6,17 +6,79 @@ import Language.CSharp.Syntax
 import Language.CSharp.Pretty
 import Gen
 import CSharpGen
+import Data.List (intercalate)
+
+data DbFieldType = Varchar Int
+
+type IsNotNull = Bool
+data DbField = DbField String DbFieldType IsNotNull
+
+data DbTable = DbTable String [DbField] [String]
+
+primaryKeyToSql :: [String] -> String
+primaryKeyToSql keys = "PRIMARY KEY(" ++ intercalate "," keys ++ ")"
+fieldTypeToSql :: DbFieldType -> String
+fieldTypeToSql (Varchar s) = "VARCHAR(" ++ show s ++ ")"
+isNotNullToSql :: Bool -> String
+isNotNullToSql isNotNull = if(isNotNull) then "NOT NULL" else "NULL"
+fieldToSql :: DbField -> String
+fieldToSql (DbField name fieldType isNotNull) = intercalate " " [name, fieldTypeToSql fieldType, isNotNullToSql isNotNull]
+fieldsToSql :: [DbField] -> String
+fieldsToSql dbFields = intercalate "," $ map fieldToSql dbFields
+tableToSqlCreateTable :: DbTable -> String
+tableToSqlCreateTable (DbTable tableName dbFields primaryKeys) =  "CREATE TABLE " ++ tableName ++ "(" ++ tableBody primaryKeys ++ ")"
+    where 
+        tableBody [] = fieldsToSql dbFields
+        tableBody keys = fieldsToSql dbFields ++ "," ++ primaryKeyToSql keys
 
 someFunc :: IO ()
-someFunc = createAndWriteToFileDatabaseTemplate $ NamespaceWithClass 
-    { usings = []
-    , nameSpace = "ns"
+someFunc = do
+    createAndWriteToFileDatabaseTemplate $ createNamespaceWithClassForTableZones
+    createAndWriteToFileDatabaseTemplate $ createNamespaceWithClassForTableReasons
+
+
+createNamespaceWithClassForTableZones :: NamespaceWithClass
+createNamespaceWithClassForTableZones = createNamespaceWithClassForTable functionalityName zonesTable
+    where 
+        functionalityName = "Zones"
+        tablePrefix = "ra_"
+        tableName = tablePrefix ++ functionalityName
+        zonesTable = DbTable 
+            tableName
+            [ DbField "FeatureId" (Varchar 50) True
+            , DbField "ZoneCode" (Varchar 50) True
+            , DbField "Value" (Varchar 1000) False
+            ]
+            [ "FeatureId", "ZoneCode"]
+
+createNamespaceWithClassForTableReasons :: NamespaceWithClass
+createNamespaceWithClassForTableReasons = createNamespaceWithClassForTable functionalityName zonesTable
+    where 
+        functionalityName = "Reasons"
+        tablePrefix = "ra_"
+        tableName = tablePrefix ++ functionalityName
+        zonesTable = DbTable 
+            tableName
+            [ DbField "FeatureId" (Varchar 50) True
+            , DbField "ReasonCode" (Varchar 50) True
+            , DbField "Value" (Varchar 1000) False
+            ]
+            [ "FeatureId", "ReasonCode"]
+
+createNamespaceWithClassForTable :: String -> DbTable -> NamespaceWithClass
+createNamespaceWithClassForTable functionalityName table = NamespaceWithClass 
+    { usings = ["Tlantic.SQLite"]
+    , nameSpace = "MRS.InStore.SDK.SQLite"
     , classDefinition = ClassWithMethods
-        { className = "classname"
-        , ctor = mkTemplateSimpleGetCtor "classname"
+        { className = cn
+        , ctor = mkCtorForCreateTable sectionName cn sql
         , methods = []
         }
     }
+    where 
+        sectionName = functionalityName ++ "Dal"
+        cn = functionalityName ++ "CreateTable"
+        sql = tableToSqlCreateTable table
 
 createAndWriteToFileDatabaseTemplate :: NamespaceWithClass -> IO ()
 createAndWriteToFileDatabaseTemplate templateData  = 
@@ -29,25 +91,33 @@ createAndWriteToFileDatabaseTemplate templateData  =
 mkCu :: NamespaceWithClass -> CompilationUnit
 mkCu = mkNamespaceWithClass mkTemplateSimpleGetClass
 
+mkClassWithBaseClass :: [Modifier] -> String -> String -> [MemberDeclaration] -> Declaration
+mkClassWithBaseClass modifiers cn bn cb = TypeDeclaration (ClassTypeDeclaration [] modifiers (Identifier cn) [] [TypeName (Name [Identifier bn]) []] [] (ClassBody cb))
+
 mkTemplateSimpleGetClass :: ClassWithMethods -> Declaration
 mkTemplateSimpleGetClass classWithMethods = 
-    mkPublicClass cn cb
+    mkClassWithBaseClass [Public] cn "ExecuteNonQuery" cb
     where 
         cn = className classWithMethods
-        cb = mkTemplateSimpleGetClassBody cn classWithMethods
+        cb = mkTemplateSimpleGetClassBody classWithMethods
 
-mkTemplateSimpleGetClassBody :: [Char] -> ClassWithMethods -> [MemberDeclaration]
-mkTemplateSimpleGetClassBody ctorName classWithMethods = (mkServerConfigField : ctor1 : ms)
+mkTemplateSimpleGetClassBody :: ClassWithMethods -> [MemberDeclaration]
+mkTemplateSimpleGetClassBody classWithMethods = (ctor1 : ms)
     where 
-        mkServerConfigField = mkField "ServerConfig" "serverConfig"
-        ctor1 = mkTemplateSimpleGetCtor ctorName
+        ctor1 = ctor classWithMethods
         ms = methods classWithMethods
 
-mkTemplateSimpleGetCtor :: String -> MemberDeclaration
-mkTemplateSimpleGetCtor ctorName = mkConstructorMemberDeclaration [Internal] ctorName [serverConfigFormalParam] [serverConfigAssign]
+mkCtorForCreateTable :: String -> String -> String -> MemberDeclaration
+mkCtorForCreateTable sectionName ctorName sql = 
+    mkConstructorMemberDeclarationWithConstructorInitializer [Public] ctorName [dbFormalParam] (ConstructorBaseCall baseCallArguments) []
     where
-        serverConfigFormalParam = mkFormalParam "ServerConfig" "serverConfig"
-        serverConfigAssign = mkAssignStatement "this.serverConfig" "serverConfig"
+        baseCallArguments = [dbArgument,classNameToShowInLogArgument,methodNameToShowInLogArgument,sqlArgument]
+        dbName = "db"
+        dbFormalParam = mkFormalParam "SQLiteDb" dbName
+        dbArgument = mkArgument $ mkSimpleName dbName
+        classNameToShowInLogArgument =  mkLiteralStringArgument sectionName
+        methodNameToShowInLogArgument =  mkLiteralStringArgument ctorName
+        sqlArgument = mkLiteralStringArgument sql
 
 createAndWriteToFile :: Pretty a => FilePath -> a -> IO ()
 createAndWriteToFile fileName cu  = writeFile fileName $ prettyPrint cu      
