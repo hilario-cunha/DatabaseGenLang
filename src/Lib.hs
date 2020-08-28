@@ -104,10 +104,31 @@ createNamespaceWithClassesForTable tableWithFunctionalityName =
     [ createNamespaceWithClassForTableCreateTable tableWithFunctionalityName
     , createNamespaceWithClassForTableInsertOrUpdate tableWithFunctionalityName
     , createNamespaceWithClassForTableReader tableWithFunctionalityName
+    , createNamespaceWithClassForRow tableWithFunctionalityName
     ]
 
 type SearchDbFields = [DbField]
 data TableWithFunctionalityName = TableWithFunctionalityName String DbTable SearchDbFields
+
+createNamespaceWithClassForRow :: TableWithFunctionalityName -> NamespaceWithClass
+createNamespaceWithClassForRow (TableWithFunctionalityName functionalityName table _) = NamespaceWithClass 
+    { usings = []
+    , nameSpace = "MRS.InStore.SDK.SQLite"
+    , classDefinition = ClassWithMethods
+        { className = cn
+        , ctor = mkCtorForRow ctorName dbFields
+        , methods = createProperties dbFields
+        }
+    }
+    where 
+        ctorName = (functionalityName ++ "Row")
+        cn = Class ctorName
+        dbFields = exctractDbFieldsFromTable table
+
+createProperties :: [DbField] -> [MemberDeclaration]
+createProperties dbFields = map mkAutoProperty dbFields
+    where 
+        mkAutoProperty (DbField name dbFieldType _) = mkPropertyAutoPublicGet (cSharpType dbFieldType) name
 
 createNamespaceWithClassForTableReader :: TableWithFunctionalityName -> NamespaceWithClass
 createNamespaceWithClassForTableReader (TableWithFunctionalityName functionalityName table searchDbFields) = NamespaceWithClass 
@@ -227,6 +248,28 @@ mkCtorForCreateTable sectionName ctorName sql =
         classNameToShowInLogArgument =  mkLiteralStringArgument sectionName
         methodNameToShowInLogArgument =  mkLiteralStringArgument ctorName
         sqlArgument = mkLiteralStringArgument sql
+
+-- mkCtor :: [Modifier] -> Bool -> String -> [Property] -> MemberDeclaration
+-- mkCtor modifiers applyNotNull c ps = mkConstructorMemberDeclaration modifiers c params (mkValidationsCtor ++ mkAssignments)
+--     where 
+--         params = mkFormalParamPs ps
+--         mkAssignments = map mkAssignmentP ps
+--         mkAssignmentP (Property n t _) = ExpressionStatement $ mkAssignThisDot n (camelCase n)
+        
+--         mkValidationsCtor = if(applyNotNull) then catMaybes $ map mkValidationCtor ps else []
+--         mkValidationCtor (Property n t vals) = 
+--             if hasNotNullValidationsP vals 
+--             then Just $ mkValidationNotNull (camelCase n) t
+--             else Nothing
+
+mkCtorForRow :: String -> [DbField] -> MemberDeclaration
+mkCtorForRow ctorName dbFields = 
+    mkConstructorMemberDeclaration [Public] ctorName paramsFormalParams mkAssignments
+    where
+        paramsFormalParams = map paramFormalParam dbFields
+        paramFormalParam (DbField name dbFieldType _) = mkFormalParam (cSharpType dbFieldType) (camelCase name)
+        mkAssignments = map mkAssignmentP dbFields
+        mkAssignmentP (DbField n _ _) = ExpressionStatement $ mkAssignThisDot n (camelCase n)
 
 mkCtorForReader :: String -> String -> String -> [DbField] -> MemberDeclaration
 mkCtorForReader sectionName ctorName sql dbFieldsToSearch = 
