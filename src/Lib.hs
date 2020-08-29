@@ -14,6 +14,37 @@ someFunc = do
     generateTableClasses createTableWithFunctionalityNameForReasons
     generateTableClasses createTableWithFunctionalityNameForZones
     generateTableClasses createTableWithFunctionalityNameForAlertColors
+    generateTableClasses createTableWithFunctionalityNameForAlerts
+
+-- @"CREATE TABLE ra_Alerts (
+--                         ItemId   VARCHAR(250) NOT NULL,
+-- 						ParentId  VARCHAR(250) NULL,
+--                         AlertId  VARCHAR(250) NOT NULL,
+--                         Level    INT NOT NULL,
+--                         Name    VARCHAR(250)  NULL,
+--                         PRIMARY KEY(ItemId,ParentId, AlertId) 
+--                     ) WITHOUT ROWID"
+createTableWithFunctionalityNameForAlerts :: TableWithFunctionalityName
+createTableWithFunctionalityNameForAlerts = TableWithFunctionalityName functionalityName zonesTable searchDbFields
+    where 
+        functionalityName = "Alerts"
+        tablePrefix = "ra_"
+        tableName = tablePrefix ++ functionalityName
+        itemIdName = "ItemId"
+        itemIdDbField = DbField itemIdName (Varchar 250) True
+        parentIdName = "ParentId"
+        parentIdDbField = DbField parentIdName (Varchar 250) False
+        alertIdName = "AlertId"
+        zonesTable = DbTable 
+            tableName
+            [ itemIdDbField
+            , parentIdDbField
+            , DbField alertIdName (Varchar 250) True
+            , DbField "Level" DbInt True
+            , DbField "Name" (Varchar 250) False
+            ]
+            [ itemIdName, parentIdName, alertIdName]
+        searchDbFields = [itemIdDbField, parentIdDbField]
 
 createTableWithFunctionalityNameForAlertColors :: TableWithFunctionalityName
 createTableWithFunctionalityNameForAlertColors = TableWithFunctionalityName functionalityName zonesTable searchDbFields

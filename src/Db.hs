@@ -66,8 +66,13 @@ whereSql :: SearchDbFields -> String
 whereSql searchFields = "Where " ++ searchFieldsToSql
     where
         searchFieldsToSql = intercalate "," $ map searchFieldToSql searchFields
-        searchFieldToSql searchField = (extractNameFromDbField searchField) ++ "=" ++ (extractParamNameFromDbField searchField)
+        searchFieldToSql searchField@(DbField _ _ True) = (extractNameFromDbField searchField) ++ "=" ++ (extractParamNameFromDbField searchField)
+        searchFieldToSql searchField@(DbField _ _ False) = "(case WHEN " ++ paramName ++ " IS NULL THEN (" ++ fieldName ++ " is NULL) else (" ++ fieldName ++ " = " ++ paramName ++ ") END)"
+            where
+                paramName = extractParamNameFromDbField searchField
+                fieldName = extractNameFromDbField searchField
 
+-- (case WHEN @P1 IS NULL THEN (DbColumn is NULL) else (DbColumn = @P1) END)
 tableBody :: [DbField] -> [String] -> String
 tableBody dbFields [] = fieldsToSql dbFields
 tableBody dbFields keys = fieldsToSql dbFields ++ "," ++ primaryKeyToSql keys 
