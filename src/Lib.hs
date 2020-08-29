@@ -15,15 +15,31 @@ someFunc = do
     generateTableClasses createTableWithFunctionalityNameForZones
     generateTableClasses createTableWithFunctionalityNameForAlertColors
     generateTableClasses createTableWithFunctionalityNameForAlerts
+    generateTableClasses createTableWithFunctionalityNameForWithdrawModalControl
 
--- @"CREATE TABLE ra_Alerts (
---                         ItemId   VARCHAR(250) NOT NULL,
--- 						ParentId  VARCHAR(250) NULL,
---                         AlertId  VARCHAR(250) NOT NULL,
---                         Level    INT NOT NULL,
---                         Name    VARCHAR(250)  NULL,
---                         PRIMARY KEY(ItemId,ParentId, AlertId) 
---                     ) WITHOUT ROWID"
+--  @"CREATE TABLE ra_WithdrawModalControl(
+--                         FeatureId VARCHAR(50) NOT NULL,
+--                         Code VARCHAR(50) NOT NULL,
+--                         Visible BIT NOT NULL
+--                     )"
+createTableWithFunctionalityNameForWithdrawModalControl :: TableWithFunctionalityName
+createTableWithFunctionalityNameForWithdrawModalControl = TableWithFunctionalityName functionalityName zonesTable searchDbFields
+    where 
+        functionalityName = "WithdrawModalControl"
+        tablePrefix = "ra_"
+        tableName = tablePrefix ++ functionalityName
+        featureIdName = "FeatureId"
+        featureIdbField = DbField featureIdName (Varchar 50) True
+        codeName = "Code"
+        zonesTable = DbTable 
+            tableName
+            [ featureIdbField
+            , DbField codeName (Varchar 50) True
+            , DbField "Visible" Bit True
+            ]
+            [ featureIdName, codeName]
+        searchDbFields = [featureIdbField]
+
 createTableWithFunctionalityNameForAlerts :: TableWithFunctionalityName
 createTableWithFunctionalityNameForAlerts = TableWithFunctionalityName functionalityName zonesTable searchDbFields
     where 

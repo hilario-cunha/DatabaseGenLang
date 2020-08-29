@@ -20,6 +20,7 @@ data DbTable = DbTable String [DbField] [String]
 data DbField = DbField String DbFieldType IsNotNull
 data DbFieldType    = Varchar Int
                     | DbInt
+                    | Bit
 type IsNotNull = Bool
 
 type SearchDbFields = [DbField]
@@ -27,6 +28,7 @@ type SearchDbFields = [DbField]
 cSharpType :: DbFieldType -> String
 cSharpType (Varchar _) = "string"
 cSharpType (DbInt) = "int"
+cSharpType (Bit) = "bool"
 
 exctractDbFieldsFromTable :: DbTable -> [DbField]
 exctractDbFieldsFromTable (DbTable _ dbFields _) = dbFields
@@ -37,6 +39,7 @@ primaryKeyToSql keys = "PRIMARY KEY(" ++ intercalate "," keys ++ ")"
 fieldTypeToSql :: DbFieldType -> String
 fieldTypeToSql (Varchar s) = "VARCHAR(" ++ show s ++ ")"
 fieldTypeToSql (DbInt) = "INT"
+fieldTypeToSql (Bit) = "BIT"
 
 isNotNullToSql :: Bool -> String
 isNotNullToSql isNotNull = if(isNotNull) then "NOT NULL" else "NULL"
