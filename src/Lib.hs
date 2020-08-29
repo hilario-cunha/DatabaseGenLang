@@ -13,6 +13,26 @@ someFunc :: IO ()
 someFunc = do
     generateTableClasses createTableWithFunctionalityNameForReasons
     generateTableClasses createTableWithFunctionalityNameForZones
+    generateTableClasses createTableWithFunctionalityNameForAlertColors
+
+createTableWithFunctionalityNameForAlertColors :: TableWithFunctionalityName
+createTableWithFunctionalityNameForAlertColors = TableWithFunctionalityName functionalityName zonesTable searchDbFields
+    where 
+        functionalityName = "AlertColors"
+        tablePrefix = "ra_"
+        tableName = tablePrefix ++ functionalityName
+        featureIdDbField = DbField "FeatureId" (Varchar 50) True
+        zonesTable = DbTable 
+            tableName
+            [ featureIdDbField
+            , DbField "RangeBegin" DbInt True
+            , DbField "RangeEnd" DbInt True
+            , DbField "Red" DbInt True
+            , DbField "Green" DbInt True
+            , DbField "Blue" DbInt True
+            ]
+            [ "FeatureId", "RangeBegin", "RangeEnd"]
+        searchDbFields = [featureIdDbField]
 
 createTableWithFunctionalityNameForZones :: TableWithFunctionalityName
 createTableWithFunctionalityNameForZones = TableWithFunctionalityName functionalityName zonesTable searchDbFields

@@ -18,13 +18,15 @@ data TableWithFunctionalityName = TableWithFunctionalityName String DbTable Sear
 data DbTable = DbTable String [DbField] [String]
 
 data DbField = DbField String DbFieldType IsNotNull
-data DbFieldType = Varchar Int
+data DbFieldType    = Varchar Int
+                    | DbInt
 type IsNotNull = Bool
 
 type SearchDbFields = [DbField]
 
 cSharpType :: DbFieldType -> String
 cSharpType (Varchar _) = "string"
+cSharpType (DbInt) = "int"
 
 exctractDbFieldsFromTable :: DbTable -> [DbField]
 exctractDbFieldsFromTable (DbTable _ dbFields _) = dbFields
@@ -34,6 +36,7 @@ primaryKeyToSql keys = "PRIMARY KEY(" ++ intercalate "," keys ++ ")"
 
 fieldTypeToSql :: DbFieldType -> String
 fieldTypeToSql (Varchar s) = "VARCHAR(" ++ show s ++ ")"
+fieldTypeToSql (DbInt) = "INT"
 
 isNotNullToSql :: Bool -> String
 isNotNullToSql isNotNull = if(isNotNull) then "NOT NULL" else "NULL"
@@ -70,7 +73,7 @@ tableBody dbFields [] = fieldsToSql dbFields
 tableBody dbFields keys = fieldsToSql dbFields ++ "," ++ primaryKeyToSql keys 
 
 tableToSqlCreateTable :: DbTable -> String
-tableToSqlCreateTable (DbTable tableName dbFields primaryKeys) =  "CREATE TABLE " ++ tableName ++ "(" ++ tableBody dbFields primaryKeys ++ ")"
+tableToSqlCreateTable (DbTable tableName dbFields primaryKeys) =  "CREATE TABLE " ++ tableName ++ "(" ++ tableBody dbFields primaryKeys ++ ") WITHOUT ROWID"
 
 tableToSqlInsertOrUpdate :: DbTable -> String
 tableToSqlInsertOrUpdate (DbTable tableName dbFields _) = "insert or replace into " ++ tableName ++" (" ++ dbFieldsToSqlNames dbFields ++ ") values (" ++ dbFieldsToSqlParams dbFields ++ ")"

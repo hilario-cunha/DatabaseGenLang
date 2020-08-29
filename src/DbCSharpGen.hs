@@ -153,6 +153,7 @@ mkReaderMap rowType dbFields =
         body = [mkReturn $ mkNew rowType bodyArgs]
         bodyArgs = map mkArgument rowTypeValues
         dataReaderGetAs (Varchar _) fieldName = mkInvocationSimpleName "dr.GetAsString" [mkLiteralStringArgument fieldName]
+        dataReaderGetAs (DbInt) fieldName = mkInvocationSimpleName "dr.GetAsInt" [mkLiteralStringArgument fieldName]
         dataReaderGetAsDbField (DbField name dbFieldType _) = dataReaderGetAs dbFieldType name
         rowTypeValues = map dataReaderGetAsDbField dbFields
 
